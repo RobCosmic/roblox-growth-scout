@@ -1,0 +1,34 @@
+name: scan
+on:
+  schedule:
+    - cron: "0 13 * * *"   # ~6 AM PT
+    - cron: "0 1 * * *"    # ~6 PM PT
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run collector
+        run: node collector.js
+      - name: Validate
+        run: node test/dry-run.js
+      - name: Commit snapshot
+        run: |
+          git config user.name "scout-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/
+          git diff --cached --quiet && echo "no changes" && exit 0
+          git commit -m "scan: $(date -u +%FT%TZ)"
+          git push

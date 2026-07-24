@@ -1,0 +1,3 @@
+[build]
+  command = "node test/dry-run.js && node report.js"
+  publish = "site"
