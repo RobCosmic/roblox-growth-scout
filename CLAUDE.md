@@ -46,9 +46,11 @@ serves ad fill only to authenticated sessions and publishes no campaign history,
   `nativeAdData` markers and logs hits to the snapshot's `sponsorSightings`.
 - The report accumulates a **sighting ledger** per game: first seen / last seen /
   N of M scans sponsored. Duration is built by us, never queried.
-- **Organic-signature heuristics** flag suspicious candidates from public data:
-  no organic chart presence, like ratio < 85%, favorites/visit < 0.2%, and (with
-  history) flat-then-cliff CCU decay. Flags render as POSSIBLY AD-DRIVEN.
+- **Organic-signature heuristics** flag suspicious candidates from public data
+  (≥2 signals ⇒ POSSIBLY AD-DRIVEN): no organic chart presence, like ratio < 85%,
+  favorites/visit < 0.2%, favorites/visit > 5% (favorite-botting — healthy is
+  ~1-2%; validated 2026-07-23: flagged obby-farm games ran 11-20%), and (with
+  history) flat-then-cliff CCU decay.
 - **Stay anonymous.** Do not put a logged-in Roblox session into CI — polite,
   unauthenticated public-API polling is the defensible posture. Keep the retry/
   backoff and inter-request delays; do not raise request rates casually.
