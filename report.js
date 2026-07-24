@@ -79,11 +79,12 @@ function build() {
     const likeP = pct(g.up, (g.up ?? 0) + (g.down ?? 0));
     const favP = pct(g.favs, g.visits);
     const suspicious = [];
-    if (!(g.sorts || []).length) suspicious.push('no organic chart presence');
+    if (!(g.sorts || []).length) suspicious.push((g.srch || []).length ? 'search-discovered, no chart presence' : 'no organic chart or search presence');
     if (likeP != null && likeP < 85) suspicious.push(`like ratio ${likeP.toFixed(0)}%`);
     if (favP != null && favP < 0.2) suspicious.push(`fav/visit ${favP.toFixed(2)}%`);
     if (suspicious.length >= 2) return { cls: 'flagchip', label: 'POSSIBLY AD-DRIVEN', detail: 'Heuristic flags: ' + suspicious.join('; ') + '. No ad slot directly sighted (anonymous scans see little ad fill).' };
-    return { cls: 'band', label: 'SPONSOR: none detected', detail: `No ad slot sighted in ${snaps.length} scan${snaps.length > 1 ? 's' : ''}; organic signature (${(g.sorts || []).length ? 'charted: ' + g.sorts.join(', ') : 'uncharted'}${likeP != null ? `, ${likeP.toFixed(1)}% likes` : ''}${favP != null ? `, ${favP.toFixed(2)}% fav/visit` : ''}).` };
+    const found = (g.sorts || []).length ? 'charted: ' + g.sorts.join(', ') : (g.srch || []).length ? 'via search ("' + g.srch[0] + '")' : 'uncharted';
+    return { cls: 'band', label: 'SPONSOR: none detected', detail: `No ad slot sighted in ${snaps.length} scan${snaps.length > 1 ? 's' : ''}; organic signature (${found}${likeP != null ? `, ${likeP.toFixed(1)}% likes` : ''}${favP != null ? `, ${favP.toFixed(2)}% fav/visit` : ''}).` };
   }
 
   function card(g) {

@@ -28,6 +28,11 @@ for partners. Goal: surface games worth **acquiring** — organic growth, not ad
 - Acquisition band: **1,000–2,500 CCU**, game **under 30 days old**.
 - Watch band: 400+ CCU approaching from below; young games above band tracked as
   "outgrew" comps.
+- **Discovery = charts + keyword search, both load-bearing** (verified 2026-07-23:
+  charts alone found 2 in-band games, charts+search found 7 — charts are shallow,
+  ~34 games/sort, and miss young mid-CCU games). The `QUERIES` list in collector.js
+  is the coverage knob; games matching no query and no chart stay invisible, so
+  keep broad generic terms ("new", "update", "beta") alongside genre terms.
 - Once a game has matched or been watched, it stays **tracked** for continuity
   (refetched every scan even if it falls off every chart) for `trackDaysAfterExit`
   days — growth curves must not have holes.

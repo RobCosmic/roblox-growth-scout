@@ -24,11 +24,18 @@ const SORTS = ['top-trending', 'up-and-coming', 'top-playing-now', 'fun-with-fri
   'trending-in-roleplay-and-avatar-sim', 'trending-in-shopping', 'trending-in-simulation',
   'trending-in-strategy', 'trending-in-survival'];
 
-// Keyword sweeps exist to widen the ad-slot screen (and catch sponsored tiles in
-// search surfaces); anonymous sessions get little/no ad fill, but the markers are
-// checked on every tile we ever see.
+// Keyword sweeps are a full discovery channel AND the ad-slot screen. Charts are
+// shallow (~34 games/sort) and miss young mid-CCU games entirely — verified
+// 2026-07-23: search found 3.5x more in-band young games than charts alone. The
+// query list is a coverage knob: widening it widens discovery. Games matching no
+// query AND no chart remain invisible — keep generic terms in the list.
 const QUERIES = ['simulator', 'tycoon', 'obby', 'anime', 'horror', 'rpg', 'clicker',
-  'tower defense', 'soccer', 'pet'];
+  'tower defense', 'soccer', 'pet', 'new', 'beta', 'update', 'fight', 'escape',
+  'build', 'survive', 'race', 'merge', 'idle', 'draft', 'clean', 'find the',
+  'capybara', 'brainrot', 'story', 'hide and seek', 'dungeon', 'card', 'football',
+  'basketball', 'prison', 'school', 'hospital', 'restaurant', 'mining', 'fishing',
+  'farm', 'steal', 'sword', 'magic', 'dress up', 'roleplay', 'parkour', 'puzzle',
+  'zombie', 'boss'];
 
 const HISTORY = path.join(__dirname, 'data', 'history.jsonl');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -99,28 +106,49 @@ async function main() {
   }
   console.error(`charts: ${discovered.size} organic universes, ${sightings.length} ad slots`);
 
-  // 2) Keyword sweep — ad-slot screen on search surfaces
+  // 2) Keyword sweep — discovery + ad-slot screen on search surfaces
+  const searchOrigin = {}; // universeId -> Set of queries (search presence ≠ chart presence)
   for (const q of QUERIES) {
     try {
       const d = await getJSON(`https://apis.roblox.com/search-api/omni-search?searchQuery=${encodeURIComponent(q)}&pageType=all&sessionId=${session}`);
       for (const grp of d.searchResults || [])
-        for (const c of grp.contents || [])
-          if (c.isSponsored || c.nativeAdData) sightings.push(adSighting(c, 'search:' + q));
+        for (const c of grp.contents || []) {
+          if (!c.universeId) continue;
+          if (c.isSponsored || c.nativeAdData) { sightings.push(adSighting(c, 'search:' + q)); continue; }
+          discovered.add(c.universeId);
+          (searchOrigin[c.universeId] = searchOrigin[c.universeId] || new Set()).add(q);
+        }
     } catch (e) { console.error('search fail', q, e.message); }
     await sleep(CFG.delayMs.search);
   }
+  console.error(`search: ${Object.keys(searchOrigin).length} universes across ${QUERIES.length} queries`);
 
   // 3) Details for discovered ∪ tracked
   const history = loadHistory();
   const tracked = trackedIds(history, now);
   const ids = [...new Set([...discovered, ...tracked])];
   const all = [];
+  const failedChunks = [];
   for (let i = 0; i < ids.length; i += CFG.detailBatch) {
+    const chunk = ids.slice(i, i + CFG.detailBatch);
     try {
-      const d = await getJSON('https://games.roblox.com/v1/games?universeIds=' + ids.slice(i, i + CFG.detailBatch).join(','));
+      const d = await getJSON('https://games.roblox.com/v1/games?universeIds=' + chunk.join(','));
       all.push(...(d.data || []));
-    } catch (e) { console.error('detail batch fail at', i, e.message); }
+    } catch (e) { console.error('detail batch fail at', i, e.message); failedChunks.push(chunk); }
     await sleep(CFG.delayMs.detail);
+  }
+  // Second pass: rate-limited chunks get one more shot after a long cooldown so
+  // an unattended cron run doesn't silently drop games.
+  if (failedChunks.length) {
+    console.error(`cooling down 45s, retrying ${failedChunks.length} failed batch(es)`);
+    await sleep(45000);
+    for (const chunk of failedChunks) {
+      try {
+        const d = await getJSON('https://games.roblox.com/v1/games?universeIds=' + chunk.join(','), 5);
+        all.push(...(d.data || []));
+      } catch (e) { console.error('retry batch still failing', e.message); }
+      await sleep(CFG.delayMs.detail * 3);
+    }
   }
   console.error(`details: ${all.length}/${ids.length}`);
 
@@ -160,6 +188,7 @@ async function main() {
       ccu: g.playing, visits: g.visits, favs: g.favoritedCount,
       up: g.upVotes ?? null, down: g.downVotes ?? null,
       sorts: [...(origin[g.id] || [])],
+      srch: [...(searchOrigin[g.id] || [])].slice(0, 5),
     })).sort((a, b) => b.ccu - a.ccu),
   };
 
