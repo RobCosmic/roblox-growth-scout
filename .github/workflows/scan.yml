@@ -32,3 +32,5 @@ jobs:
           git diff --cached --quiet && echo "no changes" && exit 0
           git commit -m "scan: $(date -u +%FT%TZ)"
           git push
+
+# registered: roblox-growth-scout scan pipeline
